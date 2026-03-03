@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WFIRM Korea 유치 사무국 Check List</title>
+    
+    <!-- Tailwind CSS (CDN 연동) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'sans-serif'] },
+            animation: { 'spin-slow': 'spin 3s linear infinite' }
+          }
+        }
+      }
+    </script>
+    
+    <!-- 폰트 로드 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+
+    <!-- React & ReactDOM (CDN 연동) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (브라우저 실시간 컴파일러) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- 내장 SVG 아이콘 컴포넌트 ---
+        const IconLoader = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
+        const IconAlert = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+        const IconDashboard = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>;
+        const IconCheckCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const IconCircleDashed = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.1 2.18a9.93 9.93 0 0 1 3.8 0"/><path d="M17.6 3.71a9.95 9.95 0 0 1 2.69 2.7"/><path d="M21.82 10.1a9.93 9.93 0 0 1 0 3.8"/><path d="M20.29 17.6a9.95 9.95 0 0 1-2.7 2.69"/><path d="M13.9 21.82a9.94 9.94 0 0 1-3.8 0"/><path d="M6.4 20.29a9.95 9.95 0 0 1-2.69-2.7"/><path d="M2.18 13.9a9.93 9.93 0 0 1 0-3.8"/><path d="M3.71 6.4a9.95 9.95 0 0 1 2.7-2.69"/></svg>;
+        const IconClock = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+        const IconListTodo = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>;
+        const IconExternalLink = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
+        const IconRefresh = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+
+        function App() {
+          const [data, setData] = useState([]);
+          const [loading, setLoading] = useState(true);
+          const [error, setError] = useState(null);
+          const [lastUpdated, setLastUpdated] = useState(null);
+          const [isRefreshing, setIsRefreshing] = useState(false);
+
+          // 구글 시트 ID
+          const SHEET_ID = '1NuNjfn6mJh_WjavRslIi68UwsyChIfaCLwJMBXStevc';
+
+          // 1. 상태 클로저 트랩(Closure Trap) 방지를 위한 참조(Ref) 훅 도입
+          const fetchSheetDataRef = React.useRef();
+          
+          useEffect(() => {
+            fetchSheetDataRef.current = fetchSheetData;
+          });
+
+          // 2. 재귀적 폴링(Recursive Polling) 아키텍처 적용
+          useEffect(() => {
+            let isCancelled = false;
+            let timerId;
+
+            const pollData = async () => {
+              if (isCancelled) return;
+              await fetchSheetDataRef.current(true);
+              // 데이터 응답이 완전히 끝난 후 다시 10초 타이머 설정 (요청 병목 원천 차단)
+              timerId = setTimeout(pollData, 10000); 
+            };
+
+            // 최초 로드 실행 후 백그라운드 폴링 개시
+            fetchSheetDataRef.current(false).then(() => {
+              timerId = setTimeout(pollData, 10000);
+            });
+
+            // 컴포넌트 언마운트 시 메모리 정리
+            return () => {
+              isCancelled = true;
+              clearTimeout(timerId);
+            };
+          }, []);
+
+          const fetchSheetData = async (isBackground = false) => {
+            try {
+              if (!isBackground) setLoading(true);
+              else setIsRefreshing(true);
+              
+              setError(null);
+              
+              // CORS 우회를 위한 JSONP 동적 스크립트 통신 구현
+              const jsonData = await new Promise((resolve, reject) => {
+                const callbackName = 'gvizCallback_' + Date.now() + Math.floor(Math.random() * 1000);
+                
+                window[callbackName] = (data) => {
+                  delete window[callbackName];
+                  document.body.removeChild(script);
+                  resolve(data);
+                };
+
+                const script = document.createElement('script');
+                // 3. 캐시 무효화 파라미터(&nocache=타임스탬프)를 추가하여 구글 서버의 강제 갱신 유도
+                script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${callbackName}&gid=0&nocache=${Date.now()}`;
+                
+                script.onerror = () => {
+                  delete window[callbackName];
+                  document.body.removeChild(script);
+                  reject(new Error('네트워크 연결이 불안정하거나 보안 정책(CORS)에 의해 차단되었습니다.'));
+                };
+
+                document.body.appendChild(script);
+              });
+
+              if (jsonData.status === 'error') {
+                  const errorMsg = jsonData.errors && jsonData.errors[0] ? jsonData.errors[0].message : '알 수 없는 Google API 에러';
+                  throw new Error(`구글 시트 에러: ${errorMsg}`);
+              }
+
+              if (!jsonData?.table?.rows) throw new Error('테이블 데이터 포맷이 일치하지 않습니다.');
+
+              const parsedData = jsonData.table.rows.map(row => {
+                const cells = row.c || [];
+                const getVal = (idx) => {
+                  const cell = cells[idx];
+                  return cell?.v ? String(cell.v).trim() : '';
+                };
+
+                return {
+                  id: getVal(0), category: getVal(1), task: getVal(2), status: getVal(3), note: getVal(4)
+                };
+              }).filter((r) => {
+                if (!r.category || !r.task) return false;
+                if (r.category === '구분' || r.task === '업무명') return false; 
+                return true;
+              });
+
+              setData(parsedData);
+              setLastUpdated(new Date());
+              
+            } catch (err) {
+              console.error('Data Fetching Analysis:', err);
+              setError(`데이터 연동 중 문제가 발생했습니다: ${err.message}`);
+            } finally {
+              if (!isBackground) setLoading(false);
+              else setIsRefreshing(false);
+            }
+          };
+
+          const handleRefresh = () => fetchSheetData(true);
+
+          const formatTime = (date) => {
+            if (!date) return '-';
+            return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          };
+
+          // 통계 연산 로직
+          const stats = useMemo(() => {
+            let totalTasks = 0, totalCompleted = 0;
+            const categories = {
+              '용역사': { total: 0, completed: 0, color: 'purple' },
+              '연구원': { total: 0, completed: 0, color: 'blue' },
+              '경북도': { total: 0, completed: 0, color: 'emerald' },
+              '기타': { total: 0, completed: 0, color: 'orange' }
+            };
+            const normalizeStatus = (s) => s.replace(/\s+/g, '');
+
+            data.forEach(item => {
+              totalTasks++;
+              const isCompleted = normalizeStatus(item.status) === '완료';
+              if (isCompleted) totalCompleted++;
+
+              let catKey = item.category;
+              if (!categories[catKey]) catKey = '기타'; 
+
+              categories[catKey].total++;
+              if (isCompleted) categories[catKey].completed++;
+            });
+
+            const overallProgress = totalTasks === 0 ? 0 : Math.round((totalCompleted / totalTasks) * 100);
+            return { totalTasks, totalCompleted, overallProgress, categories };
+          }, [data]);
+
+          if (loading) {
+            return (
+              <div className="min-h-screen flex flex-col items-center justify-center font-sans">
+                <IconLoader className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+                <p className="text-slate-600 font-medium tracking-wide">데이터를 동기화하고 있습니다...</p>
+              </div>
+            );
+          }
+
+          if (error) {
+            return (
+              <div className="min-h-screen flex flex-col items-center justify-center p-4 font-sans">
+                <div className="bg-white p-6 md:p-8 rounded-2xl max-w-lg w-full text-center shadow-lg border border-red-100 flex flex-col items-center">
+                  <div className="bg-red-50 p-4 rounded-full mb-4"><IconAlert className="w-10 h-10 text-red-500" /></div>
+                  <h2 className="text-xl font-bold mb-3 text-slate-800">데이터 연동 실패</h2>
+                  <p className="text-slate-500 text-sm mb-6 leading-relaxed break-keep">{error}</p>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full">
+                     <button onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, '_blank')} className="flex-1 flex items-center justify-center px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors text-sm">
+                      <IconExternalLink className="w-4 h-4 mr-2" /> 시트 확인
+                    </button>
+                    <button onClick={fetchSheetData} className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors text-sm shadow-sm">
+                      다시 시도
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const getColorStyle = (colorName) => {
+            const map = {
+              purple: { text: 'text-purple-600', bg: 'bg-purple-50', bar: 'bg-purple-400' },
+              blue: { text: 'text-blue-600', bg: 'bg-blue-50', bar: 'bg-blue-400' },
+              emerald: { text: 'text-emerald-600', bg: 'bg-emerald-50', bar: 'bg-emerald-400' },
+              orange: { text: 'text-orange-600', bg: 'bg-orange-50', bar: 'bg-orange-400' },
+            };
+            return map[colorName] || map.blue;
+          };
+
+          const StatusBadge = ({ status }) => {
+            const s = status.replace(/\s+/g, '');
+            if (s === '완료') {
+              return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 whitespace-nowrap"><IconCheckCircle className="w-3.5 h-3.5 mr-1.5 text-emerald-500" /> 완료</span>;
+            }
+            if (s === '확인중') {
+              return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 whitespace-nowrap"><IconCircleDashed className="w-3.5 h-3.5 mr-1.5 text-blue-500 animate-[spin_3s_linear_infinite]" /> 확인 중</span>;
+            }
+            return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap"><IconClock className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> 준비 중</span>;
+          };
+
+          const radius = 60;
+          const circumference = 2 * Math.PI * radius;
+          const strokeDashoffset = circumference - (stats.overallProgress / 100) * circumference;
+
+          return (
+            <div className="min-h-screen p-3 sm:p-4 md:p-8 font-sans text-slate-800">
+              <div className="max-w-[1200px] mx-auto space-y-4 md:space-y-6">
+                
+                {/* --- Header Section (Mobile Optimized) --- */}
+                <header className="flex flex-col xl:flex-row xl:items-center justify-between bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 gap-4">
+                  {/* Title Area */}
+                  <div className="flex items-start md:items-center gap-3 md:gap-4">
+                    <div className="bg-blue-50 p-2.5 rounded-xl border border-blue-100 shrink-0 mt-1 md:mt-0">
+                      <IconDashboard className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      {/* 모바일에서는 제목이 2줄로 자연스럽게 배치되도록 break-keep 적용 */}
+                      <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight break-keep leading-snug">
+                        WFIRM Korea 유치 사무국 Check List
+                      </h1>
+                    </div>
+                  </div>
+
+                  {/* Controls Area (Wrap on mobile) */}
+                  <div className="flex flex-wrap items-center justify-between xl:justify-end gap-3 w-full xl:w-auto mt-2 xl:mt-0 border-t border-slate-100 pt-3 xl:border-0 xl:pt-0">
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex flex-col items-start sm:items-end">
+                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-sm mb-0.5">GVIZ (LIVE)</span>
+                        <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium whitespace-nowrap">업데이트: {formatTime(lastUpdated)}</span>
+                      </div>
+                      <button onClick={handleRefresh} disabled={isRefreshing} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs sm:text-sm font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 shrink-0">
+                        <IconRefresh className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> 새로고침
+                      </button>
+                      <div className="hidden sm:block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                    </div>
+                    <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
+                    <div className="flex bg-slate-50 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-xl border border-slate-100 flex-col items-end shrink-0 ml-auto sm:ml-0">
+                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Total Tasks</span>
+                      <div className="text-base sm:text-lg md:text-xl font-bold text-slate-800 leading-none">
+                        {stats.totalTasks}<span className="text-[10px] sm:text-xs md:text-sm font-medium text-slate-500 ml-1">건</span>
+                      </div>
+                    </div>
+                  </div>
+                </header>
+
+                {/* --- Metrics Grid --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+                  {/* Overall Progress */}
+                  <div className="lg:col-span-4 bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center relative min-h-[240px] md:min-h-[280px]">
+                    <div className="w-full flex justify-between items-center mb-6 absolute top-5 left-5 right-5 px-0">
+                      <h3 className="text-sm font-bold text-slate-700">전체 진척도</h3>
+                      <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">Overall</span>
+                    </div>
+                    <div className="relative w-32 h-32 md:w-40 md:h-40 mt-8 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+                        <circle cx="80" cy="80" r={radius} fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                        <circle cx="80" cy="80" r={radius} fill="none" stroke="#3b82f6" strokeWidth="12" strokeLinecap="round" className="transition-all duration-1000 ease-out" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} />
+                      </svg>
+                      <div className="absolute flex flex-col items-center justify-center">
+                        <span className="text-2xl md:text-3xl font-bold text-slate-800">{stats.overallProgress}%</span>
+                      </div>
+                    </div>
+                    <div className="mt-5 md:mt-6 bg-slate-50 border border-slate-100 px-4 py-2 rounded-lg text-xs md:text-sm font-medium text-slate-600 flex items-center gap-2">
+                      완료된 항목 <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-sm md:text-base">{stats.totalCompleted}</span> / {stats.totalTasks}
+                    </div>
+                  </div>
+
+                  {/* Category Progress Bars */}
+                  <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                    {Object.entries(stats.categories).map(([name, stat]) => {
+                      const progress = stat.total === 0 ? 0 : Math.round((stat.completed / stat.total) * 100);
+                      const colors = getColorStyle(stat.color);
+                      return (
+                        <div key={name} className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-100 flex flex-col justify-center">
+                          <div className="flex justify-between items-end mb-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-5 md:h-6 rounded-sm ${colors.bar}`}></div>
+                              <span className="text-sm md:text-base font-bold text-slate-800">{name}</span>
+                            </div>
+                            <span className="text-xl md:text-2xl font-bold text-slate-800">{progress}%</span>
+                          </div>
+                          <div className="mt-1 md:mt-2">
+                            <div className="flex justify-between text-[10px] md:text-xs font-medium text-slate-500 mb-1.5 md:mb-2">
+                              <span>진행 현황</span>
+                              <span>{stat.completed} / {stat.total} 건</span>
+                            </div>
+                            <div className="h-1.5 md:h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                              <div className={`h-full rounded-full ${colors.bar} transition-all duration-1000 ease-out`} style={{ width: `${progress}%` }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* --- Table Section (Mobile Optimized) --- */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="px-4 md:px-6 py-4 md:py-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+                    <IconListTodo className="w-4 h-4 md:w-5 md:h-5 text-slate-500" />
+                    <h3 className="text-sm md:text-base font-bold text-slate-800">세부 업무 체크리스트</h3>
+                  </div>
+                  {/* 모바일 가로 스크롤 허용 (min-w 강제 부여로 테이블 찌그러짐 방지) */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                      <thead>
+                        <tr className="bg-white border-b border-slate-200 text-xs font-semibold text-slate-500">
+                          <th className="py-3 md:py-4 pl-4 md:pl-6 pr-3 md:pr-4 w-12 md:w-16 text-center whitespace-nowrap">No.</th>
+                          <th className="py-3 md:py-4 px-3 md:px-4 w-20 md:w-28 text-center whitespace-nowrap">구분</th>
+                          <th className="py-3 md:py-4 px-3 md:px-4 w-auto">업무명</th>
+                          <th className="py-3 md:py-4 px-3 md:px-4 w-28 md:w-32 text-center whitespace-nowrap">진행 상태</th>
+                          <th className="py-3 md:py-4 px-4 md:px-6 min-w-[200px]">비고</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm text-slate-700 divide-y divide-slate-50">
+                        {data.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                            <td className="py-3 md:py-4 pl-4 md:pl-6 pr-3 md:pr-4 text-center text-slate-400 font-medium whitespace-nowrap">{row.id || '-'}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-4 text-center whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getColorStyle(stats.categories[row.category]?.color || 'orange').bg} ${getColorStyle(stats.categories[row.category]?.color || 'orange').text}`}>
+                                {row.category}
+                              </span>
+                            </td>
+                            <td className="py-3 md:py-4 px-3 md:px-4 font-medium text-slate-800 break-keep">{row.task}</td>
+                            <td className="py-3 md:py-4 px-3 md:px-4 text-center whitespace-nowrap"><StatusBadge status={row.status} /></td>
+                            <td className="py-3 md:py-4 px-4 md:px-6 text-slate-500 text-xs leading-relaxed">{row.note || '-'}</td>
+                          </tr>
+                        ))}
+                        {data.length === 0 && (
+                          <tr><td colSpan="5" className="py-12 md:py-16 text-center text-slate-400 font-medium">표시할 업무 데이터가 없습니다. 시트 내용을 확인해주세요.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
