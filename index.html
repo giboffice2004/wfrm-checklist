@@ -44,6 +44,7 @@
         const IconListTodo = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>;
         const IconExternalLink = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>;
         const IconRefresh = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+        const IconFilter = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
 
         function App() {
           const [data, setData] = useState([]);
@@ -52,17 +53,20 @@
           const [lastUpdated, setLastUpdated] = useState(null);
           const [isRefreshing, setIsRefreshing] = useState(false);
 
+          // 다중 필터 상태 관리
+          const [filters, setFilters] = useState({ date: '', category: '', status: '', assignee: '' });
+
           // 구글 시트 ID
           const SHEET_ID = '1NuNjfn6mJh_WjavRslIi68UwsyChIfaCLwJMBXStevc';
 
-          // 1. 상태 클로저 트랩(Closure Trap) 방지를 위한 참조(Ref) 훅 도입
+          // 상태 클로저 트랩 방지를 위한 참조 훅
           const fetchSheetDataRef = React.useRef();
           
           useEffect(() => {
             fetchSheetDataRef.current = fetchSheetData;
           });
 
-          // 2. 재귀적 폴링(Recursive Polling) 아키텍처 적용
+          // 재귀적 폴링 아키텍처
           useEffect(() => {
             let isCancelled = false;
             let timerId;
@@ -70,16 +74,13 @@
             const pollData = async () => {
               if (isCancelled) return;
               await fetchSheetDataRef.current(true);
-              // 데이터 응답이 완전히 끝난 후 다시 10초 타이머 설정 (요청 병목 원천 차단)
               timerId = setTimeout(pollData, 10000); 
             };
 
-            // 최초 로드 실행 후 백그라운드 폴링 개시
             fetchSheetDataRef.current(false).then(() => {
               timerId = setTimeout(pollData, 10000);
             });
 
-            // 컴포넌트 언마운트 시 메모리 정리
             return () => {
               isCancelled = true;
               clearTimeout(timerId);
@@ -93,7 +94,6 @@
               
               setError(null);
               
-              // CORS 우회를 위한 JSONP 동적 스크립트 통신 구현
               const jsonData = await new Promise((resolve, reject) => {
                 const callbackName = 'gvizCallback_' + Date.now() + Math.floor(Math.random() * 1000);
                 
@@ -104,7 +104,6 @@
                 };
 
                 const script = document.createElement('script');
-                // 3. 캐시 무효화 파라미터(&nocache=타임스탬프)를 추가하여 구글 서버의 강제 갱신 유도
                 script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${callbackName}&gid=0&nocache=${Date.now()}`;
                 
                 script.onerror = () => {
@@ -125,17 +124,44 @@
 
               const parsedData = jsonData.table.rows.map(row => {
                 const cells = row.c || [];
+                // 1. 구글 시트 데이터 파싱 개선 (f 속성 우선, v 속성 대체)
                 const getVal = (idx) => {
                   const cell = cells[idx];
-                  return cell?.v ? String(cell.v).trim() : '';
+                  return cell?.f ? String(cell.f).trim() : (cell?.v ? String(cell.v).trim() : '');
                 };
 
+                // 2. 날짜 파싱 로직 (MM.DD. 형식으로 변환)
+                let rawDate = getVal(0);
+                let formattedDate = rawDate;
+                
+                if (rawDate) {
+                  // Gviz Date 포맷 파싱 (예: Date(2023, 9, 23))
+                  const dateMatch = rawDate.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
+                  if (dateMatch) {
+                    const month = String(parseInt(dateMatch[2]) + 1).padStart(2, '0');
+                    const day = String(dateMatch[3]).padStart(2, '0');
+                    formattedDate = `${month}.${day}.`;
+                  } else {
+                     // 일반 문자열 (예: 2023-10-23, 10/23 등)에서 MM.DD. 시도
+                     const parts = rawDate.split(/[-./\s]/).filter(Boolean);
+                     if(parts.length >= 2) {
+                        const m = parts[parts.length-2].padStart(2,'0');
+                        const d = parts[parts.length-1].padStart(2,'0');
+                        formattedDate = `${m}.${d}.`;
+                     }
+                  }
+                }
+
                 return {
-                  id: getVal(0), category: getVal(1), task: getVal(2), status: getVal(3), note: getVal(4)
+                  date: formattedDate, // 기존 id -> date
+                  category: getVal(1), 
+                  task: getVal(2), 
+                  status: getVal(3), 
+                  assignee: getVal(4)  // 기존 note -> assignee
                 };
               }).filter((r) => {
                 if (!r.category || !r.task) return false;
-                if (r.category === '구분' || r.task === '업무명') return false; 
+                if (r.category === '구분' || r.task === '업무명') return false; // 헤더 행 제외
                 return true;
               });
 
@@ -158,7 +184,66 @@
             return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           };
 
-          // 통계 연산 로직
+          // --- 필터용 고유 옵션 추출 ---
+          const filterOptions = useMemo(() => {
+            const options = { date: new Set(), category: new Set(), status: new Set(), assignee: new Set() };
+            
+            data.forEach(item => {
+              if (item.date) options.date.add(item.date);
+              if (item.category) options.category.add(item.category);
+              if (item.status) {
+                  const normStatus = item.status.replace(/\s+/g, '');
+                  options.status.add(normStatus);
+              }
+              if (item.assignee) {
+                // 변경: 쉼표를 기준으로 이름을 분리하여 중복 없이 개별 추출
+                const names = item.assignee.split(',').map(name => name.trim()).filter(Boolean);
+                names.forEach(name => options.assignee.add(name));
+              }
+            });
+
+            return {
+              date: Array.from(options.date).sort(),
+              category: Array.from(options.category).sort(),
+              status: Array.from(options.status).sort(),
+              assignee: Array.from(options.assignee).sort()
+            };
+          }, [data]);
+
+          // --- 데이터 필터링 적용 ---
+          const filteredData = useMemo(() => {
+            return data.filter(item => {
+              const normStatus = item.status.replace(/\s+/g, '');
+              let match = true;
+              
+              if (filters.date && item.date !== filters.date) match = false;
+              if (filters.category && item.category !== filters.category) match = false;
+              if (filters.status && normStatus !== filters.status) match = false;
+              
+              // 변경: 부분 일치나 결합된 문자열이 아닌, 개별 이름 배열 내 포함 여부 검증
+              if (filters.assignee) {
+                if (!item.assignee) {
+                  match = false;
+                } else {
+                  const names = item.assignee.split(',').map(n => n.trim());
+                  if (!names.includes(filters.assignee)) match = false;
+                }
+              }
+              
+              return match;
+            });
+          }, [data, filters]);
+
+          const handleFilterChange = (e) => {
+            const { name, value } = e.target;
+            setFilters(prev => ({ ...prev, [name]: value }));
+          };
+
+          const clearFilters = () => {
+            setFilters({ date: '', category: '', status: '', assignee: '' });
+          };
+
+          // --- 통계 연산 (필터링 전 전체 데이터 기준 유지 또는 필터 기준 변경 가능. 여기서는 전체 데이터 유지) ---
           const stats = useMemo(() => {
             let totalTasks = 0, totalCompleted = 0;
             const categories = {
@@ -238,28 +323,38 @@
           const radius = 60;
           const circumference = 2 * Math.PI * radius;
           const strokeDashoffset = circumference - (stats.overallProgress / 100) * circumference;
+          
+          const isFilterActive = Object.values(filters).some(val => val !== '');
 
           return (
             <div className="min-h-screen p-3 sm:p-4 md:p-8 font-sans text-slate-800">
               <div className="max-w-[1200px] mx-auto space-y-4 md:space-y-6">
                 
-                {/* --- Header Section (Mobile Optimized) --- */}
-                <header className="flex flex-col xl:flex-row xl:items-center justify-between bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 gap-4">
+                {/* --- Header Section --- */}
+                <header className="flex flex-col xl:flex-row xl:items-center justify-between bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 gap-4 relative">
                   {/* Title Area */}
                   <div className="flex items-start md:items-center gap-3 md:gap-4">
                     <div className="bg-blue-50 p-2.5 rounded-xl border border-blue-100 shrink-0 mt-1 md:mt-0">
                       <IconDashboard className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      {/* 모바일에서는 제목이 2줄로 자연스럽게 배치되도록 break-keep 적용 */}
                       <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight break-keep leading-snug">
                         WFIRM Korea 유치 사무국 Check List
                       </h1>
                     </div>
                   </div>
 
-                  {/* Controls Area (Wrap on mobile) */}
+                  {/* Controls Area */}
                   <div className="flex flex-wrap items-center justify-between xl:justify-end gap-3 w-full xl:w-auto mt-2 xl:mt-0 border-t border-slate-100 pt-3 xl:border-0 xl:pt-0">
+                    
+                    {/* 원본 시트 바로가기 버튼 추가 */}
+                    <button 
+                      onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, '_blank')}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs sm:text-sm font-bold hover:bg-slate-200 transition-colors shrink-0"
+                    >
+                      <IconExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 원본 시트
+                    </button>
+
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="flex flex-col items-start sm:items-end">
                         <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-sm mb-0.5">GVIZ (LIVE)</span>
@@ -331,40 +426,90 @@
                   </div>
                 </div>
 
-                {/* --- Table Section (Mobile Optimized) --- */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="px-4 md:px-6 py-4 md:py-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
-                    <IconListTodo className="w-4 h-4 md:w-5 md:h-5 text-slate-500" />
-                    <h3 className="text-sm md:text-base font-bold text-slate-800">세부 업무 체크리스트</h3>
+                {/* --- Table Section --- */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
+                  
+                  {/* Table Toolbar / Filter Section */}
+                  <div className="px-4 md:px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <IconListTodo className="w-4 h-4 md:w-5 md:h-5 text-slate-500" />
+                        <h3 className="text-sm md:text-base font-bold text-slate-800">세부 업무 체크리스트</h3>
+                        <span className="ml-2 text-xs font-medium bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-500">
+                          {filteredData.length}건 검색됨
+                        </span>
+                      </div>
+                      
+                      {/* Filter Controls */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <IconFilter className="w-4 h-4 text-slate-400 mr-1 hidden sm:block" />
+                        
+                        <select name="date" value={filters.date} onChange={handleFilterChange} className="text-xs md:text-sm border border-slate-200 rounded-lg px-2 py-2 md:py-1.5 bg-white text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer shadow-sm">
+                          <option value="">모든 날짜</option>
+                          {filterOptions.date.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                        
+                        <select name="category" value={filters.category} onChange={handleFilterChange} className="text-xs md:text-sm border border-slate-200 rounded-lg px-2 py-2 md:py-1.5 bg-white text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer shadow-sm">
+                          <option value="">모든 구분</option>
+                          {filterOptions.category.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+
+                        <select name="status" value={filters.status} onChange={handleFilterChange} className="text-xs md:text-sm border border-slate-200 rounded-lg px-2 py-2 md:py-1.5 bg-white text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer shadow-sm">
+                          <option value="">모든 상태</option>
+                          {filterOptions.status.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+
+                        <select name="assignee" value={filters.assignee} onChange={handleFilterChange} className="text-xs md:text-sm border border-slate-200 rounded-lg px-2 py-2 md:py-1.5 bg-white text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer min-w-[100px] truncate shadow-sm">
+                          <option value="">모든 담당자</option>
+                          {filterOptions.assignee.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+
+                        {isFilterActive && (
+                          <button onClick={clearFilters} className="text-xs font-medium text-slate-500 hover:text-red-500 px-2 py-2 md:py-1 transition-colors underline underline-offset-2">
+                            초기화
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {/* 모바일 가로 스크롤 허용 (min-w 강제 부여로 테이블 찌그러짐 방지) */}
-                  <div className="overflow-x-auto">
+
+                  {/* Table Content (Scrollable with Sticky Header) */}
+                  <div className="overflow-auto flex-1 relative">
                     <table className="w-full text-left border-collapse min-w-[700px]">
-                      <thead>
-                        <tr className="bg-white border-b border-slate-200 text-xs font-semibold text-slate-500">
-                          <th className="py-3 md:py-4 pl-4 md:pl-6 pr-3 md:pr-4 w-12 md:w-16 text-center whitespace-nowrap">No.</th>
-                          <th className="py-3 md:py-4 px-3 md:px-4 w-20 md:w-28 text-center whitespace-nowrap">구분</th>
-                          <th className="py-3 md:py-4 px-3 md:px-4 w-auto">업무명</th>
-                          <th className="py-3 md:py-4 px-3 md:px-4 w-28 md:w-32 text-center whitespace-nowrap">진행 상태</th>
-                          <th className="py-3 md:py-4 px-4 md:px-6 min-w-[200px]">비고</th>
+                      <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                        <tr className="text-xs font-bold text-slate-600 uppercase tracking-wider bg-slate-100">
+                          <th className="py-3 px-4 w-20 text-center whitespace-nowrap border-b border-slate-200">날짜</th>
+                          <th className="py-3 px-4 w-24 text-center whitespace-nowrap border-b border-slate-200">구분</th>
+                          <th className="py-3 px-4 w-auto border-b border-slate-200">업무명</th>
+                          <th className="py-3 px-4 w-32 text-center whitespace-nowrap border-b border-slate-200">진행 상태</th>
+                          <th className="py-3 px-4 w-32 text-center whitespace-nowrap border-b border-slate-200">담당자</th>
                         </tr>
                       </thead>
-                      <tbody className="text-sm text-slate-700 divide-y divide-slate-50">
-                        {data.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                            <td className="py-3 md:py-4 pl-4 md:pl-6 pr-3 md:pr-4 text-center text-slate-400 font-medium whitespace-nowrap">{row.id || '-'}</td>
-                            <td className="py-3 md:py-4 px-3 md:px-4 text-center whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getColorStyle(stats.categories[row.category]?.color || 'orange').bg} ${getColorStyle(stats.categories[row.category]?.color || 'orange').text}`}>
+                      <tbody className="text-sm text-slate-700 divide-y divide-slate-100">
+                        {filteredData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-blue-50/50 transition-colors group">
+                            {/* 날짜 데이터 출력 */}
+                            <td className="py-3.5 px-4 text-center text-slate-500 font-semibold whitespace-nowrap">{row.date || '-'}</td>
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                              <span className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${getColorStyle(stats.categories[row.category]?.color || 'orange').bg} ${getColorStyle(stats.categories[row.category]?.color || 'orange').text}`}>
                                 {row.category}
                               </span>
                             </td>
-                            <td className="py-3 md:py-4 px-3 md:px-4 font-medium text-slate-800 break-keep">{row.task}</td>
-                            <td className="py-3 md:py-4 px-3 md:px-4 text-center whitespace-nowrap"><StatusBadge status={row.status} /></td>
-                            <td className="py-3 md:py-4 px-4 md:px-6 text-slate-500 text-xs leading-relaxed">{row.note || '-'}</td>
+                            <td className="py-3.5 px-4 font-medium text-slate-800 break-keep">{row.task}</td>
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap"><StatusBadge status={row.status} /></td>
+                            {/* 담당자 데이터 출력 */}
+                            <td className="py-3.5 px-4 text-center text-slate-600 text-xs font-medium whitespace-nowrap">{row.assignee || '-'}</td>
                           </tr>
                         ))}
-                        {data.length === 0 && (
-                          <tr><td colSpan="5" className="py-12 md:py-16 text-center text-slate-400 font-medium">표시할 업무 데이터가 없습니다. 시트 내용을 확인해주세요.</td></tr>
+                        {filteredData.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="py-16 text-center">
+                              <div className="flex flex-col items-center justify-center space-y-3">
+                                <IconListTodo className="w-10 h-10 text-slate-300" />
+                                <p className="text-slate-500 font-medium">검색 조건에 일치하는 업무가 없습니다.</p>
+                              </div>
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
